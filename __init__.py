@@ -28,13 +28,16 @@ class FaceGeneratorNode:
 
         return {
             "required": {
-                # Временно закомментированный ResultType (оставлен для будущего)
+                # Временно закомментированный ResultType
                 # "ResultType": (["Natural", "json", "list"], {"default": "Natural"}),
+                
+                # Добавляем seed для обхода кэша ComfyUI и управления рандомом
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": "randomize"}),
                 
                 # Глобальный переключатель Random перед основным блоком
                 "Global_Random": ([False, True], {"default": False}),
                 
-                # Увеличенные поля для текста (в ComfyUI тип STRING с multiline позволяет растягивать поле)
+                # Увеличенные поля для текста
                 "PrePrompt": ("STRING", {"multiline": True, "default": ""}),
                 "PostPrompt": ("STRING", {"multiline": True, "default": ""}),
             },
@@ -46,12 +49,15 @@ class FaceGeneratorNode:
     FUNCTION = "generate"
     CATEGORY = "prompt"
 
-    def generate(self, Global_Random, PrePrompt, PostPrompt, **kwargs):
+    def generate(self, seed, Global_Random, PrePrompt, PostPrompt, **kwargs):
+        # Инициализируем генератор случайных чисел переданным seed, 
+        # чтобы рандомизация менялась каждый раз при изменении seed
+        random.seed(seed)
+        
         main_prompt_lines = []
         wildcards_dir = os.path.join(os.path.dirname(__file__), "Wildcards")
 
         for param_key, selected_value in kwargs.items():
-            # Если включен Global_Random, то всё, что не Disabled, принудительно становится Random
             if Global_Random and selected_value != "Disabled":
                 selected_value = "Random"
 
@@ -77,13 +83,10 @@ class FaceGeneratorNode:
                     if values:
                         val_to_use = random.choice(values)
 
-            # Каждое свойство выводится с новой строки
             main_prompt_lines.append(f"{param_label}: {val_to_use}")
 
-        # Объединяем параметры через перенос строки (\n)
         main_prompt_str = "\n".join(main_prompt_lines)
         
-        # Сборка итогового промпта с сохранением отступов и пустых строк при необходимости
         parts = []
         if PrePrompt.strip():
             parts.append(PrePrompt.strip())
@@ -92,7 +95,6 @@ class FaceGeneratorNode:
         if PostPrompt.strip():
             parts.append(PostPrompt.strip())
 
-        # Между крупными частями (PrePrompt, MainPrompt, PostPrompt) можно использовать перенос строки
         final_prompt = "\n".join(parts)
         return (final_prompt,)
 
