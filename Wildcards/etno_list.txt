@@ -1,0 +1,8 @@
+arabic
+asian
+black
+indian
+latina
+persian
+polynesian
+white
